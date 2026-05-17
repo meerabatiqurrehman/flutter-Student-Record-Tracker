@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'topic_model.dart'; // Ensure this matches your model filename
+import 'topic_model.dart';
 
 class TopicListScreen extends StatefulWidget {
   final String categoryTitle;
@@ -42,7 +42,6 @@ class _TopicListScreenState extends State<TopicListScreen> {
                 ),
                 const SizedBox(height: 15),
 
-                // Date Picker
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text("Date"),
@@ -82,7 +81,7 @@ class _TopicListScreenState extends State<TopicListScreen> {
                     setState(() {
                       _items.add(TopicEntry(
                         title: titleController.text.trim(),
-                        date: selectedDate,        // ✅ Now passing DateTime
+                        date: selectedDate,
                       ));
                     });
                     Navigator.pop(context);
@@ -93,6 +92,38 @@ class _TopicListScreenState extends State<TopicListScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  // Delete with Confirmation
+  void _deleteTopic(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Topic"),
+        content: const Text("Are you sure you want to delete this topic? This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _items.removeAt(index);
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Topic deleted successfully"),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
@@ -140,14 +171,10 @@ class _TopicListScreenState extends State<TopicListScreen> {
                 item.title,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              subtitle: Text("Date: ${item.formattedDate}"), // Using formattedDate
+              subtitle: Text("Date: ${item.formattedDate}"),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                onPressed: () {
-                  setState(() {
-                    _items.removeAt(index);
-                  });
-                },
+                onPressed: () => _deleteTopic(index),   // ← Confirmation added
               ),
             ),
           );

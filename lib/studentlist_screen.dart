@@ -31,6 +31,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
   final TextEditingController fatherController = TextEditingController();
   final TextEditingController cnicController = TextEditingController();
 
+  int? editingIndex;
+
   @override
   void initState() {
     super.initState();
@@ -48,12 +50,23 @@ class _StudentListScreenState extends State<StudentListScreen> {
     });
   }
 
-  void _showAddStudentForm() {
-    rollController.clear();
-    regController.clear();
-    nameController.clear();
-    fatherController.clear();
-    cnicController.clear();
+  void _showAddStudentForm({int? index}) {
+    editingIndex = index;
+
+    if (index != null) {
+      final student = students[index];
+      rollController.text = student["roll"] ?? '';
+      regController.text = student["reg"] ?? '';
+      nameController.text = student["name"] ?? '';
+      fatherController.text = student["father"] ?? '';
+      cnicController.text = student["cnic"] ?? '';
+    } else {
+      rollController.clear();
+      regController.clear();
+      nameController.clear();
+      fatherController.clear();
+      cnicController.clear();
+    }
 
     showModalBottomSheet(
       context: context,
@@ -73,9 +86,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  "Add New Student",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                Text(
+                  editingIndex == null ? "Add New Student" : "Edit Student",
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
 
@@ -98,9 +111,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
                       ),
                     ),
                     onPressed: _submitStudent,
-                    child: const Text(
-                      "Submit Record",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    child: Text(
+                      editingIndex == null ? "Submit Record" : "Update Record",
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
                 ),
@@ -137,20 +150,64 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
 
     setState(() {
-      students.add({
-        "roll": rollController.text.trim(),
-        "reg": regController.text.trim(),
-        "name": nameController.text.trim(),
-        "father": fatherController.text.trim(),
-        "cnic": cnicController.text.trim(),
-      });
+      if (editingIndex != null) {
+        students[editingIndex!] = {
+          "roll": rollController.text.trim(),
+          "reg": regController.text.trim(),
+          "name": nameController.text.trim(),
+          "father": fatherController.text.trim(),
+          "cnic": cnicController.text.trim(),
+        };
+      } else {
+        students.add({
+          "roll": rollController.text.trim(),
+          "reg": regController.text.trim(),
+          "name": nameController.text.trim(),
+          "father": fatherController.text.trim(),
+          "cnic": cnicController.text.trim(),
+        });
+      }
       filteredStudents = students;
     });
 
     Navigator.pop(context);
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Student added successfully!")),
+      SnackBar(
+        content: Text(editingIndex == null
+            ? "Student added successfully!"
+            : "Student updated successfully!"),
+      ),
+    );
+
+    editingIndex = null;
+  }
+
+  void _deleteStudent(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Student"),
+        content: const Text("Are you sure you want to delete this student?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                students.removeAt(index);
+                filteredStudents = students;
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Student deleted successfully")),
+              );
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -174,18 +231,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
       ),
       body: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(25),
             margin: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
               color: Color(0xff4AC7FA),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(25),
-                bottomRight: Radius.circular(25),
-                topLeft: Radius.circular(25),
-                topRight: Radius.circular(25)
-              ),
+              borderRadius: BorderRadius.all(Radius.circular(25)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,7 +257,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
             ),
           ),
 
-          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -224,11 +274,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
             ),
           ),
 
-          // Add New Student Card
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GestureDetector(
-              onTap: _showAddStudentForm,
+              onTap: () => _showAddStudentForm(),
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -262,7 +311,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
           const SizedBox(height: 10),
 
-          // Students List
           Expanded(
             child: filteredStudents.isEmpty
                 ? const Center(
@@ -293,7 +341,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     leading: CircleAvatar(
                       backgroundColor: colors[index % colors.length],
                       child: Text(
-                        "${index + 1}",           // ← Serial Number (1, 2, 3...)
+                        "${index + 1}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -311,6 +359,19 @@ class _StudentListScreenState extends State<StudentListScreen> {
                           "CNIC: ${student["cnic"] ?? '-'}",
                     ),
                     isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _showAddStudentForm(index: index),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteStudent(index),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

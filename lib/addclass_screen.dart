@@ -12,12 +12,12 @@ class _AddClassScreenState extends State<AddClassScreen> {
   String? selectedDegree;
   String? selectedSemester;
   String? selectedSection;
+  String? selectedCreditHours;
 
   // Text controllers
   final TextEditingController courseCodeController = TextEditingController();
   final TextEditingController courseTitleController = TextEditingController();
-  final TextEditingController creditHoursController = TextEditingController();
-  final TextEditingController departmentController = TextEditingController(); // ← New
+  final TextEditingController departmentController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +34,14 @@ class _AddClassScreenState extends State<AddClassScreen> {
             _buildDropdown(
               "Degree",
               selectedDegree,
-              ["BS", "ADP", "M.Phil"],
+              ["BS", "ADP", "M.Phil", "Ph.D"],
                   (value) => setState(() => selectedDegree = value),
             ),
 
             const SizedBox(height: 12),
 
-            // Department TextField (Changed from Dropdown)
-            _buildTextField(
-              departmentController,
-              "Department",
-            ),
+            // Department TextField
+            _buildTextField(departmentController, "Department"),
 
             const SizedBox(height: 12),
 
@@ -78,11 +75,12 @@ class _AddClassScreenState extends State<AddClassScreen> {
 
             const SizedBox(height: 12),
 
-            // Credit Hours
-            _buildTextField(
-              creditHoursController,
+            // Credit Hours Dropdown
+            _buildDropdown(
               "Credit Hours",
-              keyboardType: TextInputType.number,
+              selectedCreditHours,
+              ["1", "2", "3", "4", "5"],
+                  (value) => setState(() => selectedCreditHours = value),
             ),
 
             const SizedBox(height: 30),
@@ -112,12 +110,11 @@ class _AddClassScreenState extends State<AddClassScreen> {
   }
 
   void _saveClass() {
-    // Validation
     if (selectedDegree == null) {
       _showError("Please select Degree");
       return;
     }
-    if (departmentController.text.trim().isEmpty) {        // ← Updated validation
+    if (departmentController.text.trim().isEmpty) {
       _showError("Please enter Department");
       return;
     }
@@ -137,20 +134,19 @@ class _AddClassScreenState extends State<AddClassScreen> {
       _showError("Please enter Course Title");
       return;
     }
-    if (creditHoursController.text.trim().isEmpty) {
-      _showError("Please enter Credit Hours");
+    if (selectedCreditHours == null) {
+      _showError("Please select Credit Hours");
       return;
     }
 
-    // Return data
     Navigator.pop(context, {
       "degree": selectedDegree,
-      "department": departmentController.text.trim(),     // ← Now from TextField
+      "department": departmentController.text.trim(),
       "semester": selectedSemester,
       "section": selectedSection,
       "code": courseCodeController.text.trim(),
       "title": courseTitleController.text.trim(),
-      "credit": creditHoursController.text.trim(),
+      "credit": selectedCreditHours,
     });
   }
 
@@ -164,7 +160,6 @@ class _AddClassScreenState extends State<AddClassScreen> {
     );
   }
 
-  // Dropdown Widget
   Widget _buildDropdown(
       String label,
       String? value,
@@ -186,7 +181,6 @@ class _AddClassScreenState extends State<AddClassScreen> {
     );
   }
 
-  // TextField Widget
   Widget _buildTextField(
       TextEditingController controller,
       String label, {
@@ -208,8 +202,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
   void dispose() {
     courseCodeController.dispose();
     courseTitleController.dispose();
-    creditHoursController.dispose();
-    departmentController.dispose();        // ← Don't forget to dispose
+    departmentController.dispose();
     super.dispose();
   }
 }

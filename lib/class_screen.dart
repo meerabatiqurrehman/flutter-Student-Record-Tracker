@@ -10,7 +10,6 @@ class ClassScreen extends StatefulWidget {
 }
 
 class _ClassScreenState extends State<ClassScreen> {
-  // Changed from List<String> to List<Map> to store complete data
   List<Map<String, dynamic>> classes = [];
   List<Map<String, dynamic>> filteredClasses = [];
 
@@ -41,23 +40,54 @@ class _ClassScreenState extends State<ClassScreen> {
   void _openAddClassScreen() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AddClassScreen()),
+      MaterialPageRoute(builder: (context) => const AddClassScreen()), // Fixed: const is okay here
     ).then((result) {
       if (result != null && result is Map<String, dynamic>) {
-        // Create display name for the list
         String displayName =
             "${result['degree']} ${result['department']} - ${result['semester']} ${result['section']} | ${result['code']} ${result['title']}";
 
         setState(() {
           classes.add({
-            ...result, // spread all data (degree, department, semester, etc.)
-            'displayName': displayName, // for showing in list
+            ...result,
+            'displayName': displayName,
           });
-
           filteredClasses = classes;
         });
       }
     });
+  }
+
+  // Delete Class with Confirmation
+  void _deleteClass(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Class"),
+        content: const Text("Are you sure you want to delete this class? This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                classes.removeAt(index);
+                filteredClasses = classes;
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Class deleted successfully"),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -139,13 +169,12 @@ class _ClassScreenState extends State<ClassScreen> {
 
                     return GestureDetector(
                       onTap: () {
-                        // Now passing full class data
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => DashboardScreen(
-                              classData: classItem,        // Full data
-                              className: classItem['displayName'], // Optional
+                              classData: classItem,
+                              className: classItem['displayName'],
                             ),
                           ),
                         );
@@ -163,10 +192,18 @@ class _ClassScreenState extends State<ClassScreen> {
                           ),
                           title: Text(
                             classItem['displayName'],
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          trailing: const Icon(Icons.arrow_forward_ios),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteClass(index),
+                              ),
+                              const Icon(Icons.arrow_forward_ios),
+                            ],
+                          ),
                         ),
                       ),
                     );

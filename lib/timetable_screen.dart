@@ -128,12 +128,44 @@ class _TimetableScreenState extends State<TimetableScreen> {
     );
   }
 
+  // Clear Lecture with Confirmation
+  void _clearLecture(String day, String time) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Lecture"),
+        content: const Text("Are you sure you want to delete this lecture?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                schedule[day]?.remove(time);
+                if (schedule[day]?.isEmpty ?? false) {
+                  schedule.remove(day);
+                }
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Lecture deleted successfully")),
+              );
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
-          // Beautiful Gradient Top Bar (Like Course Details Screen)
+          // Gradient Top Bar
           Container(
             padding: const EdgeInsets.only(top: 50, left: 16, right: 16, bottom: 20),
             decoration: const BoxDecoration(
@@ -162,7 +194,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
             ),
           ),
 
-          // Add Lecture Button (Right Side with Gradient)
+          // Add Lecture Button
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Align(
@@ -229,29 +261,34 @@ class _TimetableScreenState extends State<TimetableScreen> {
                           final lecture = schedule[day]?[time];
                           final room = lecture?['room'] ?? '';
 
-                          return Container(
-                            height: 85,
-                            padding: const EdgeInsets.all(8),
-                            color: lecture != null
-                                ? const Color(0xff26A69A).withOpacity(0.15)
+                          return GestureDetector(
+                            onLongPress: lecture != null
+                                ? () => _clearLecture(day, time)
                                 : null,
-                            child: lecture != null
-                                ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  lecture['subject'] ?? "${widget.semester} Class",
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                  textAlign: TextAlign.center,
+                            child: Container(
+                              height: 85,
+                              padding: const EdgeInsets.all(8),
+                              color: lecture != null
+                                  ? const Color(0xff26A69A).withOpacity(0.15)
+                                  : null,
+                              child: lecture != null
+                                  ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    lecture['subject'] ?? "${widget.semester} Class",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (room.isNotEmpty)
+                                    Text("Room: $room", style: const TextStyle(fontSize: 11)),
+                                ],
+                              )
+                                  : const Center(
+                                child: Text(
+                                  "-",
+                                  style: TextStyle(fontSize: 24, color: Colors.grey),
                                 ),
-                                if (room.isNotEmpty)
-                                  Text("Room: $room", style: const TextStyle(fontSize: 11)),
-                              ],
-                            )
-                                : const Center(
-                              child: Text(
-                                "-",
-                                style: TextStyle(fontSize: 24, color: Colors.grey),
                               ),
                             ),
                           );
@@ -260,6 +297,22 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     )),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // Instruction Message
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: Colors.grey.shade100,
+            child: const Text(
+              "Click and hold cell to delete the class",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
               ),
             ),
           ),
