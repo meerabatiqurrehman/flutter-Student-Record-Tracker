@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'topic_model.dart';
 
 class TopicListScreen extends StatefulWidget {
   final String categoryTitle;
   final List<Color> themeColors;
+  final String classId;
 
   const TopicListScreen({
     super.key,
     required this.categoryTitle,
     required this.themeColors,
+    required this.classId,
   });
 
   @override
@@ -16,112 +19,168 @@ class TopicListScreen extends StatefulWidget {
 }
 
 class _TopicListScreenState extends State<TopicListScreen> {
+  late DatabaseReference ref;
+
   final List<TopicEntry> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    ref = FirebaseDatabase.instance
+        .ref("Classes")
+        .child(widget.classId)
+        .child(widget.categoryTitle);
+
+    _loadData();
+  }
+
+  void _loadData() {
+    ref.onValue.listen((event) {
+      final data = event.snapshot.value;
+
+      _items.clear();
+
+      if (data != null) {
+        Map map = data as Map;
+
+        map.forEach((key, value) {
+          _items.add(
+            TopicEntry(
+              title: value['title'],
+              date: DateTime.parse(value['date']),
+            ),
+          );
+        });
+      }
+
+      if (mounted) setState(() {});
+    });
+  }
 
   void _showAddDialog() {
     final TextEditingController titleController = TextEditingController();
-    DateTime selectedDate = DateTime.now();
+    DateTime? selectedDate;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text("Add ${widget.categoryTitle} Topic"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: "Topic Name",
-                    hintText: "Enter topic title",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                const SizedBox(height: 15),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text("Add ${widget.categoryTitle} Topic"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
 
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text("Date"),
-                  subtitle: Text(
-                    "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: "Topic Name",
+                    ),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: () async {
-                      final DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setDialogState(() => selectedDate = picked);
-                      }
-                    },
+
+                  const SizedBox(height: 15),
+
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Select Date"),
+                    subtitle: Text(
+                      selectedDate == null
+                          ? "No date selected"
+                          : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.calendar_today),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+
+                        if (picked != null) {
+                          setDialogState(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                    ),
                   ),
+                ],
+              ),
+
+              actions: [
+
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+
+                ElevatedButton(
+                  onPressed: () async {
+                    if (titleController.text.isEmpty || selectedDate == null) return;
+
+                    String id = ref.push().key!;
+
+                    await ref.child(id).set({
+                      "title": titleController.text.trim(),
+                      "date": selectedDate!.toIso8601String(),
+                    });
+
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Save"),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.themeColors[0],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () {
-                  if (titleController.text.isNotEmpty) {
-                    setState(() {
-                      _items.add(TopicEntry(
-                        title: titleController.text.trim(),
-                        date: selectedDate,
-                      ));
-                    });
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text("Save", style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
-  // Delete with Confirmation
-  void _deleteTopic(int index) {
+  void _deleteTopic(String title) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Delete Topic"),
-        content: const Text("Are you sure you want to delete this topic? This action cannot be undone."),
+        title: const Text("Confirm Delete"),
+        content: const Text("Are you sure you want to delete this topic?"),
         actions: [
+
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
+
           TextButton(
-            onPressed: () {
-              setState(() {
-                _items.removeAt(index);
-              });
+            onPressed: () async {
               Navigator.pop(context);
+
+              final snapshot = await ref.get();
+
+              if (snapshot.exists) {
+                Map data = snapshot.value as Map;
+
+                data.forEach((key, value) async {
+                  if (value['title'] == title) {
+                    await ref.child(key).remove();
+                  }
+                });
+              }
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text("Topic deleted successfully"),
+                  content: Text("Deleted successfully"),
                   backgroundColor: Colors.red,
                 ),
               );
             },
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -132,58 +191,34 @@ class _TopicListScreenState extends State<TopicListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
+
       appBar: AppBar(
         title: Text("${widget.categoryTitle} Topics"),
         backgroundColor: widget.themeColors[0],
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
+
       body: _items.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.note_add_outlined, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              "No ${widget.categoryTitle}s added yet",
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      )
+          ? const Center(child: Text("No Topics Yet"))
           : ListView.builder(
-        padding: const EdgeInsets.all(16),
         itemCount: _items.length,
         itemBuilder: (context, index) {
           final item = _items[index];
-          return Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: CircleAvatar(
-                backgroundColor: widget.themeColors[1].withOpacity(0.2),
-                child: Icon(Icons.book_outlined, color: widget.themeColors[0]),
-              ),
-              title: Text(
-                item.title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: Text("Date: ${item.formattedDate}"),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                onPressed: () => _deleteTopic(index),   // ← Confirmation added
-              ),
+
+          return ListTile(
+            title: Text(item.title),
+            subtitle: Text(item.formattedDate),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _deleteTopic(item.title),
             ),
           );
         },
       ),
+
       floatingActionButton: FloatingActionButton(
         backgroundColor: widget.themeColors[0],
         onPressed: _showAddDialog,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       ),
     );
   }

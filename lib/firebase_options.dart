@@ -55,6 +55,7 @@ class DefaultFirebaseOptions {
     appId: '1:994540711682:android:02b8689ceae92e09e8dc1b',
     messagingSenderId: '994540711682',
     projectId: 'student-record-tracker-b836b',
+    databaseURL: 'https://student-record-tracker-b836b-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'student-record-tracker-b836b.firebasestorage.app',
   );
 

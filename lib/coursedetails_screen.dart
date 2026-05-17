@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'topic_list_screen.dart'; // Ensure this matches your file name
+import 'topic_list_screen.dart';
 
 class CourseDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> courseData;
 
-  const CourseDetailsScreen({super.key, required this.courseData});
+  const CourseDetailsScreen({
+    super.key,
+    required this.courseData,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +15,6 @@ class CourseDetailsScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 1. Top Gradient Header
           Container(
             height: 280,
             decoration: const BoxDecoration(
@@ -34,13 +36,12 @@ class CourseDetailsScreen extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                // Custom App Bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Text(
@@ -57,14 +58,13 @@ class CourseDetailsScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // Course Header Info
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        courseData['title'] ?? "Data Structures & Algorithms",
+                        courseData['title'] ?? "Course Title",
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
@@ -86,77 +86,54 @@ class CourseDetailsScreen extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                // 3. The Menu Cards
                 Expanded(
-                  child: SingleChildScrollView(
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Column(
                       children: [
+
                         Row(
                           children: [
-                            // LECTURE CARD
+
                             Expanded(
-                              child: _buildLargeCard(
+                              child: _buildCard(
+                                context,
                                 "Lecture Topics",
                                 Icons.play_circle_outline,
-                                [const Color(0xFF8E1CD6), const Color(
-                                    0xFF4728A5)],
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const TopicListScreen(
-                                        categoryTitle: "Lecture",
-                                        themeColors: [Color(0xFF8E1CD6), Color(
-                                            0xFF4728A5)],
-                                      ),
-                                    ),
-                                  );
-                                },
+                                const [Color(0xFF8E1CD6), Color(0xFF4728A5)],
+                                "Lecture",
                               ),
                             ),
+
                             const SizedBox(width: 20),
-                            // ASSIGNMENT CARD
+
                             Expanded(
-                              child: _buildLargeCard(
+                              child: _buildCard(
+                                context,
                                 "Assignment Topics",
                                 Icons.assignment_outlined,
-                                [const Color(0xFFFFB74D), const Color(0xFFF06292)],
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const TopicListScreen(
-                                        categoryTitle: "Assignment",
-                                        themeColors: [Color(0xFFFFB74D), Color(0xFFF06292)],
-                                      ),
-                                    ),
-                                  );
-                                },
+                                const [Color(0xFFFFB74D), Color(0xFFF06292)],
+                                "Assignment",
                               ),
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 20),
-                        // QUIZ CARD
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.45,
-                          child: _buildLargeCard(
-                            "Quiz Topics",
-                            Icons.history_toggle_off,
-                            [const Color(0xFF00E5FF), const Color(0xFF1DE9B6)],
-                            onTap: () {
-                              Navigator.push(
+
+                        // 🔥 SAME SIZE FIX (NOT FULL WIDTH CHANGE)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildCard(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => const TopicListScreen(
-                                    categoryTitle: "Quiz",
-                                    themeColors: [Color(0xFF00E5FF), Color(0xFF1DE9B6)],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                                "Quiz Topics",
+                                Icons.quiz,
+                                const [Color(0xFF00E5FF), Color(0xFF1DE9B6)],
+                                "Quiz",
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -170,44 +147,50 @@ class CourseDetailsScreen extends StatelessWidget {
     );
   }
 
-  // UPDATED HELPER WIDGET WITH onTap
-  Widget _buildLargeCard(String title, IconData icon, List<Color> colors, {required VoidCallback onTap}) {
+  Widget _buildCard(
+      BuildContext context,
+      String title,
+      IconData icon,
+      List<Color> colors,
+      String category,
+      ) {
     return GestureDetector(
-      onTap: onTap,
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(25),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: colors,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TopicListScreen(
+              categoryTitle: category,
+              themeColors: colors,
+              classId: courseData['id'],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: colors[0].withOpacity(0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 60),
-              const SizedBox(height: 15),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+        );
+      },
+      child: Container(
+        height: 140, // ✅ SAME SIZE FIXED FOR ALL 3
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: Colors.white),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );

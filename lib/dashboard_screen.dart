@@ -3,7 +3,7 @@ import 'coursedetails_screen.dart';
 import 'studentlist_screen.dart';
 import 'attendance_screen.dart';
 import 'timetable_screen.dart';
-import 'assessment_screen.dart';        // ← Added this import
+import 'assessment_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   final Map<String, dynamic> classData;
@@ -18,13 +18,13 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String displayTitle = className ??
-        "${classData['degree']} ${classData['semester']}";
+        "${classData['degree'] ?? ''} ${classData['semester'] ?? ''}";
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Top Gradient Background
+          // ORIGINAL TOP GRADIENT (UNCHANGED)
           Container(
             height: 250,
             decoration: const BoxDecoration(
@@ -44,7 +44,6 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Custom App Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   child: Row(
@@ -65,7 +64,6 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Header Titles
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
                   child: Column(
@@ -78,11 +76,9 @@ class DashboardScreen extends StatelessWidget {
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        "${classData['department']} - Section ${classData['section']}",
+                        "${classData['department'] ?? ''} - Section ${classData['section'] ?? ''}",
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,
@@ -94,7 +90,6 @@ class DashboardScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // Grid of Menu Cards
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -106,13 +101,13 @@ class DashboardScreen extends StatelessWidget {
                         _buildMenuCard(
                           "Course Details",
                           Icons.list_alt,
-                          [Color(0xFF9D62FD), Color(0xFF2433E4)],
+                          const [Color(0xFF9D62FD), Color(0xFF2433E4)],
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => CourseDetailsScreen(
-                                    courseData: classData),
+                                builder: (context) =>
+                                    CourseDetailsScreen(courseData: classData),
                               ),
                             );
                           },
@@ -120,7 +115,7 @@ class DashboardScreen extends StatelessWidget {
                         _buildMenuCard(
                           "Student List",
                           Icons.people,
-                          [Color(0xFF5CF4AA), Color(0xFF3ABFA4)],
+                          const [Color(0xFF5CF4AA), Color(0xFF3ABFA4)],
                           onTap: () {
                             Navigator.push(
                               context,
@@ -138,7 +133,7 @@ class DashboardScreen extends StatelessWidget {
                         _buildMenuCard(
                           "Attendance",
                           Icons.calendar_month,
-                          [Color(0xFFFFB359), Color(0xFFFF3B29)],
+                          const [Color(0xFFFFB359), Color(0xFFFF3B29)],
                           onTap: () {
                             Navigator.push(
                               context,
@@ -148,7 +143,7 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
-                                  students: [],
+                                  students: const [],
                                 ),
                               ),
                             );
@@ -157,7 +152,7 @@ class DashboardScreen extends StatelessWidget {
                         _buildMenuCard(
                           "Timetable",
                           Icons.event_note,
-                          [Color(0xFF2DE1FC), Color(0xFF5082E5)],
+                          const [Color(0xFF2DE1FC), Color(0xFF5082E5)],
                           onTap: () {
                             Navigator.push(
                               context,
@@ -175,9 +170,8 @@ class DashboardScreen extends StatelessWidget {
                         _buildMenuCard(
                           "Assessment",
                           Icons.edit_note,
-                          [Color(0xFFEB8EFF), Color(0xFFBA2FFF)],
+                          const [Color(0xFFEB8EFF), Color(0xFFBA2FFF)],
                           onTap: () {
-                            // ✅ Added navigation to Assessment Screen
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -186,7 +180,7 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
-                                  students: [], // Pass actual students list later if needed
+                                  students: const [],
                                 ),
                               ),
                             );
@@ -207,9 +201,9 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildMenuCard(
       String title,
       IconData icon,
-      List<Color> colors,
-      {required VoidCallback onTap}
-      ) {
+      List<Color> colors, {
+        required VoidCallback onTap,
+      }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(

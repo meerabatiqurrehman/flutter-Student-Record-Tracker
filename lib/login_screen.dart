@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 import 'class_screen.dart';
@@ -13,8 +14,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  void _loginUser(BuildContext context) {
-    String email = emailController.text.trim();
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  bool _isLoading = false;
+
+  Future<void> _loginUser(BuildContext context) async {
+    String email = emailController.text.trim().toLowerCase();
     String password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
@@ -22,18 +27,33 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final user = RegisteredUsers.users.firstWhere(
-          (u) => u['email'] == email && u['password'] == password,
-      orElse: () => <String, String>{},
-    );
+    setState(() => _isLoading = true);
 
-    if (user.isNotEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ClassScreen()),
-      );
-    } else {
-      _showMessage(context, "Incorrect email or password", Colors.red);
+    try {
+      String sanitizedEmail = email.replaceAll('.', ',');
+
+      final snapshot = await _dbRef.child('users/$sanitizedEmail').get();
+
+      if (snapshot.exists) {
+        final userData = snapshot.value as Map<dynamic, dynamic>;
+
+        if (userData['password'] == password) {
+          _showMessage(context, "Login Successful!", Colors.green);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ClassScreen()),
+          );
+        } else {
+          _showMessage(context, "Incorrect password", Colors.red);
+        }
+      } else {
+        _showMessage(context, "No account found with this email", Colors.red);
+      }
+    } catch (e) {
+      _showMessage(context, "Error: ${e.toString()}", Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -63,7 +83,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Icon(Icons.school, size: 90, color: Color(0xff0d3b66)),
                   const SizedBox(height: 10),
-                  const Text("SRT Login", style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Color(0xff0d3b66))),
+                  const Text("SRT Login",
+                      style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff0d3b66))),
                   const SizedBox(height: 40),
 
                   TextField(
@@ -74,7 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       prefixIcon: const Icon(Icons.email),
                       filled: true,
                       fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none),
                     ),
                   ),
 
@@ -88,7 +114,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       prefixIcon: const Icon(Icons.lock),
                       filled: true,
                       fillColor: Colors.white,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none),
                     ),
                   ),
 
@@ -98,12 +126,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: () => _loginUser(context),
+                      onPressed: _isLoading ? null : () => _loginUser(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff0d3b66),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
                       ),
-                      child: const Text("Login", style: TextStyle(fontSize: 18, color: Colors.white)),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Login",
+                          style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),
                   ),
 
@@ -115,8 +147,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text("Don't have an account?"),
                       const SizedBox(width: 5),
                       GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignupScreen())),
-                        child: const Text("Sign Up", style: TextStyle(color: Color(0xff0d3b66), fontWeight: FontWeight.bold)),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SignupScreen())),
+                        child: const Text("Sign Up",
+                            style: TextStyle(
+                                color: Color(0xff0d3b66),
+                                fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

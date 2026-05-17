@@ -1,11 +1,7 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
-import 'class_screen.dart';
 
-// Global storage for registered users
-class RegisteredUsers {
-  static List<Map<String, String>> users = [];
-}
+import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -20,9 +16,13 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
 
-  void _signupUser(BuildContext context) {
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  bool _isLoading = false;
+
+  Future<void> _signupUser(BuildContext context) async {
     String name = nameController.text.trim();
-    String email = emailController.text.trim();
+    String email = emailController.text.trim().toLowerCase();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
@@ -36,24 +36,54 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (RegisteredUsers.users.any((user) => user['email'] == email)) {
-      _showMessage(context, "This email is already registered. Please login.", Colors.orange);
+    if (password.length < 6) {
+      _showMessage(context, "Password must be at least 6 characters", Colors.red);
       return;
     }
 
-    // Save new user
-    RegisteredUsers.users.add({
-      "name": name,
-      "email": email,
-      "password": password,
-    });
+    setState(() => _isLoading = true);
 
-    _showMessage(context, "Account created successfully! Please login.", Colors.green);
+    try {
+      String sanitizedEmail = email.replaceAll('.', ',');
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
+      print("🔄 Checking email...");
+
+      final snapshot = await _dbRef.child('users/$sanitizedEmail').get()
+          .timeout(const Duration(seconds: 40));
+
+      if (snapshot.exists) {
+        _showMessage(context, "This email is already registered.", Colors.orange);
+        return;
+      }
+
+      print("🔄 Saving user...");
+
+      await _dbRef.child('users/$sanitizedEmail').set({
+        'name': name,
+        'email': email,
+        'password': password,
+        'createdAt': ServerValue.timestamp,
+      }).timeout(const Duration(seconds: 30));
+
+      print("✅ Signup Successful!");
+
+      _showMessage(context, "Account created successfully! Please login.", Colors.green);
+
+      nameController.clear();
+      emailController.clear();
+      passwordController.clear();
+      confirmPasswordController.clear();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    } catch (e) {
+      print("❌ Error: $e");
+      _showMessage(context, "Signup failed. Check internet & try again.", Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showMessage(BuildContext context, String msg, Color color) {
@@ -87,7 +117,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Name Field
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
@@ -101,7 +130,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Email Field
                   TextField(
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -116,7 +144,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Password Field
                   TextField(
                     controller: passwordController,
                     obscureText: true,
@@ -131,7 +158,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Confirm Password
                   TextField(
                     controller: confirmPasswordController,
                     obscureText: true,
@@ -146,17 +172,18 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Signup Button
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: () => _signupUser(context),
+                      onPressed: _isLoading ? null : () => _signupUser(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff0d3b66),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
-                      child: const Text("Sign Up", style: TextStyle(fontSize: 18, color: Colors.white)),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Sign Up", style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),
                   ),
 

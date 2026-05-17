@@ -1,3 +1,4 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 class StudentListScreen extends StatefulWidget {
@@ -21,8 +22,8 @@ class StudentListScreen extends StatefulWidget {
 class _StudentListScreenState extends State<StudentListScreen> {
   final TextEditingController searchController = TextEditingController();
 
-  List<Map<String, String>> students = [];
-  List<Map<String, String>> filteredStudents = [];
+  List<Map<String, dynamic>> students = [];
+  List<Map<String, dynamic>> filteredStudents = [];
 
   // Form Controllers
   final TextEditingController rollController = TextEditingController();
@@ -31,13 +32,39 @@ class _StudentListScreenState extends State<StudentListScreen> {
   final TextEditingController fatherController = TextEditingController();
   final TextEditingController cnicController = TextEditingController();
 
-  int? editingIndex;
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  String? editingKey; // Firebase key for editing
 
   @override
   void initState() {
     super.initState();
     filteredStudents = students;
     searchController.addListener(_filterStudents);
+    _loadStudents();   // Load data from Firebase
+  }
+
+  // Generate unique class key
+  String get _classKey => "${widget.department}_${widget.semester}_${widget.section}".replaceAll(" ", "_").toLowerCase();
+
+  Future<void> _loadStudents() async {
+    try {
+      final snapshot = await _dbRef.child('classes/$_classKey/students').get();
+      if (snapshot.exists) {
+        final data = snapshot.value as Map<dynamic, dynamic>;
+
+        setState(() {
+          students = data.entries.map((entry) {
+            final student = Map<String, dynamic>.from(entry.value);
+            student['key'] = entry.key; // Save firebase key
+            return student;
+          }).toList();
+          filteredStudents = students;
+        });
+      }
+    } catch (e) {
+      print("Error loading students: $e");
+    }
   }
 
   void _filterStudents() {
@@ -50,11 +77,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
     });
   }
 
-  void _showAddStudentForm({int? index}) {
-    editingIndex = index;
+  void _showAddStudentForm({String? key}) {
+    editingKey = key;
 
-    if (index != null) {
-      final student = students[index];
+    if (key != null) {
+      final student = students.firstWhere((s) => s['key'] == key);
       rollController.text = student["roll"] ?? '';
       regController.text = student["reg"] ?? '';
       nameController.text = student["name"] ?? '';
@@ -87,7 +114,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  editingIndex == null ? "Add New Student" : "Edit Student",
+                  editingKey == null ? "Add New Student" : "Edit Student",
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
@@ -112,7 +139,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     ),
                     onPressed: _submitStudent,
                     child: Text(
-                      editingIndex == null ? "Submit Record" : "Update Record",
+                      editingKey == null ? "Submit Record" : "Update Record",
                       style: const TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
@@ -139,7 +166,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     );
   }
 
-  void _submitStudent() {
+  Future<void> _submitStudent() async {
     if (nameController.text.trim().isEmpty ||
         rollController.text.trim().isEmpty ||
         regController.text.trim().isEmpty) {
@@ -149,40 +176,43 @@ class _StudentListScreenState extends State<StudentListScreen> {
       return;
     }
 
-    setState(() {
-      if (editingIndex != null) {
-        students[editingIndex!] = {
-          "roll": rollController.text.trim(),
-          "reg": regController.text.trim(),
-          "name": nameController.text.trim(),
-          "father": fatherController.text.trim(),
-          "cnic": cnicController.text.trim(),
-        };
+    final studentData = {
+      "roll": rollController.text.trim(),
+      "reg": regController.text.trim(),
+      "name": nameController.text.trim(),
+      "father": fatherController.text.trim(),
+      "cnic": cnicController.text.trim(),
+      "addedAt": ServerValue.timestamp,
+    };
+
+    try {
+      if (editingKey != null) {
+        // Update existing
+        await _dbRef.child('classes/$_classKey/students/$editingKey').update(studentData);
       } else {
-        students.add({
-          "roll": rollController.text.trim(),
-          "reg": regController.text.trim(),
-          "name": nameController.text.trim(),
-          "father": fatherController.text.trim(),
-          "cnic": cnicController.text.trim(),
-        });
+        // Add new
+        await _dbRef.child('classes/$_classKey/students').push().set(studentData);
       }
-      filteredStudents = students;
-    });
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(editingIndex == null
-            ? "Student added successfully!"
-            : "Student updated successfully!"),
-      ),
-    );
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(editingKey == null
+              ? "Student added successfully!"
+              : "Student updated successfully!"),
+        ),
+      );
 
-    editingIndex = null;
+      _loadStudents(); // Refresh list
+      editingKey = null;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
-  void _deleteStudent(int index) {
+  Future<void> _deleteStudent(String key) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -194,15 +224,19 @@ class _StudentListScreenState extends State<StudentListScreen> {
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                students.removeAt(index);
-                filteredStudents = students;
-              });
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Student deleted successfully")),
-              );
+              try {
+                await _dbRef.child('classes/$_classKey/students/$key').remove();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Student deleted successfully")),
+                );
+                _loadStudents();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Delete failed: $e")),
+                );
+              }
             },
             child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
@@ -364,11 +398,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showAddStudentForm(index: index),
+                          onPressed: () => _showAddStudentForm(key: student['key']),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteStudent(index),
+                          onPressed: () => _deleteStudent(student['key']),
                         ),
                       ],
                     ),
