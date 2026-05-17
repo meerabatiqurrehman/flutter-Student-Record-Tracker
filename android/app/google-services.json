@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "994540711682",
+    "project_id": "student-record-tracker-b836b",
+    "storage_bucket": "student-record-tracker-b836b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:994540711682:android:02b8689ceae92e09e8dc1b",
+        "android_client_info": {
+          "package_name": "com.example.student_record_dashboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAy3y3Xe0GYpOAJ7uKmd5iwPxJOVhC3Igk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
