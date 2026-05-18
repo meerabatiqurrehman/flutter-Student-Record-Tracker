@@ -35,9 +35,17 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  String get _classKey => "${widget.department}_${widget.semester}_${widget.section}"
-      .replaceAll(" ", "_")
-      .toLowerCase();
+  // ==================== UPDATED CLASS KEY ====================
+  String get _classKey {
+    final degree = (widget.className ?? "").trim().isNotEmpty
+        ? widget.className!
+        : "unknown";
+
+    return "${degree}_${widget.department}_${widget.semester}_${widget.section}"
+        .replaceAll(" ", "_")
+        .replaceAll("-", "_")
+        .toLowerCase();
+  }
 
   @override
   void initState() {
@@ -154,7 +162,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
     }
   }
 
-  // ==================== FIXED DELETE ====================
   Future<void> _clearLecture(String day, String time) async {
     showDialog(
       context: context,
@@ -168,7 +175,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);   // Close dialog first
+              Navigator.pop(context);
               try {
                 await _dbRef.child('classes/$_classKey/timetable/$day/$time').remove();
 
@@ -176,7 +183,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                   const SnackBar(content: Text("Lecture deleted successfully")),
                 );
 
-                _loadTimetable();   // Refresh the table
+                _loadTimetable();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("Delete failed: $e")),
@@ -192,11 +199,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (Build method same as before - no change needed)
     return Scaffold(
       body: Column(
         children: [
-          // Top Bar (same)
           Container(
             padding: const EdgeInsets.only(top: 50, left: 16, right: 16, bottom: 20),
             decoration: const BoxDecoration(
@@ -215,7 +220,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
             ),
           ),
 
-          // Add Button (same)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Align(
@@ -235,7 +239,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
             ),
           ),
 
-          // Table (same)
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,

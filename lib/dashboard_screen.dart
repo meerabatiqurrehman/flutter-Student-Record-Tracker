@@ -143,7 +143,6 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
-                                  students: const [],
                                 ),
                               ),
                             );
@@ -180,7 +179,6 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
-                                  students: const [],
                                 ),
                               ),
                             );

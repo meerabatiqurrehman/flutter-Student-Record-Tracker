@@ -34,18 +34,27 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  String? editingKey; // Firebase key for editing
+  String? editingKey;
 
   @override
   void initState() {
     super.initState();
     filteredStudents = students;
     searchController.addListener(_filterStudents);
-    _loadStudents();   // Load data from Firebase
+    _loadStudents();
   }
 
-  // Generate unique class key
-  String get _classKey => "${widget.department}_${widget.semester}_${widget.section}".replaceAll(" ", "_").toLowerCase();
+  // ==================== UPDATED CLASS KEY ====================
+  String get _classKey {
+    final degree = (widget.className ?? "").trim().isNotEmpty
+        ? widget.className!
+        : "unknown";
+
+    return "${degree}_${widget.department}_${widget.semester}_${widget.section}"
+        .replaceAll(" ", "_")
+        .replaceAll("-", "_")
+        .toLowerCase();
+  }
 
   Future<void> _loadStudents() async {
     try {
@@ -56,7 +65,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         setState(() {
           students = data.entries.map((entry) {
             final student = Map<String, dynamic>.from(entry.value);
-            student['key'] = entry.key; // Save firebase key
+            student['key'] = entry.key;
             return student;
           }).toList();
           filteredStudents = students;
@@ -187,10 +196,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
     try {
       if (editingKey != null) {
-        // Update existing
         await _dbRef.child('classes/$_classKey/students/$editingKey').update(studentData);
       } else {
-        // Add new
         await _dbRef.child('classes/$_classKey/students').push().set(studentData);
       }
 
@@ -203,7 +210,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         ),
       );
 
-      _loadStudents(); // Refresh list
+      _loadStudents();
       editingKey = null;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
