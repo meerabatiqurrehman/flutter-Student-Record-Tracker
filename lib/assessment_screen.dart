@@ -6,6 +6,7 @@ class AssessmentScreen extends StatefulWidget {
   final String department;
   final String semester;
   final String section;
+  final String? classKey;        // ← New
 
   const AssessmentScreen({
     super.key,
@@ -13,6 +14,7 @@ class AssessmentScreen extends StatefulWidget {
     required this.department,
     required this.semester,
     required this.section,
+    this.classKey,
   });
 
   @override
@@ -33,8 +35,11 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // ==================== UPDATED CLASS KEY ====================
+  // ==================== STRONG CLASS KEY ====================
   String get _classKey {
+    if (widget.classKey != null && widget.classKey!.isNotEmpty) {
+      return widget.classKey!;
+    }
     final degree = (widget.className ?? "").trim().isNotEmpty
         ? widget.className!
         : "unknown";
@@ -49,6 +54,24 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   void initState() {
     super.initState();
     assessmentTypes = List.from(defaultAssessmentTypes);
+    _reloadAllData();
+  }
+
+  @override
+  void didUpdateWidget(covariant AssessmentScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.className != widget.className ||
+        oldWidget.department != widget.department ||
+        oldWidget.semester != widget.semester ||
+        oldWidget.section != widget.section ||
+        oldWidget.classKey != widget.classKey) {
+      _reloadAllData();
+    }
+  }
+
+  void _reloadAllData() {
+    assessmentData.clear();
+    students.clear();
     _loadStudents();
     _loadAssessmentTypes();
     _loadAssessments();
@@ -58,7 +81,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     try {
       final snapshot = await _dbRef.child('classes/$_classKey/assessmentTypes').get();
       if (snapshot.exists) {
-        final savedTypes = (snapshot.value as List<dynamic>).cast<String>();
+        final savedTypes = (snapshot.value as List<dynamic>? ?? []).cast<String>();
         setState(() {
           for (var type in savedTypes) {
             if (!assessmentTypes.contains(type)) {
@@ -81,7 +104,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     try {
       final snapshot = await _dbRef.child('classes/$_classKey/students').get();
       if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+        final data = snapshot.value as Map<dynamic, dynamic>? ?? {};
         setState(() {
           students = data.entries.map((entry) {
             final student = Map<String, dynamic>.from(entry.value);
@@ -89,6 +112,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
             return student;
           }).toList();
         });
+      } else {
+        setState(() => students = []);
       }
     } catch (e) {
       print("Error loading students: $e");
@@ -99,13 +124,13 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     try {
       final snapshot = await _dbRef.child('classes/$_classKey/assessments').get();
       if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+        final data = snapshot.value as Map<dynamic, dynamic>? ?? {};
         setState(() {
           assessmentData = {};
           data.forEach((key, value) {
-            assessmentData[key] = {};
+            assessmentData[key.toString()] = {};
             (value as Map<dynamic, dynamic>).forEach((roll, record) {
-              assessmentData[key]![roll] = Map<String, dynamic>.from(record);
+              assessmentData[key.toString()]![roll] = Map<String, dynamic>.from(record);
             });
           });
         });
@@ -132,177 +157,187 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff0f4f8),
-      body: Column(
-        children: [
-          // Top Bar
-          Container(
-            padding: const EdgeInsets.only(top: 50, left: 16, right: 16, bottom: 20),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xff4AC7FA), Color(0xff26A69A)],
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffdff3ff), Color(0xff8ecdf5)],
+          ),
+        ),
+        child: Column(
+          children: [
+            // Top Bar
+            Container(
+              padding: const EdgeInsets.only(top: 50, left: 16, right: 16, bottom: 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xff4AC7FA), Color(0xff26A69A)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+                  const SizedBox(width: 12),
+                  const Text("Assessment", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Spacer(),
+                  IconButton(icon: const Icon(Icons.save, color: Colors.white), onPressed: _saveAssessment),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
-                const SizedBox(width: 12),
-                const Text("Assessment", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.save, color: Colors.white), onPressed: _saveAssessment),
-              ],
-            ),
-          ),
 
-          // Assessment Selector
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xff4AC7FA),
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Select Assessment", style: TextStyle(color: Colors.white, fontSize: 16)),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 50,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: assessmentTypes.length,
-                    itemBuilder: (context, index) {
-                      String type = assessmentTypes[index];
-                      bool isSelected = type == selectedAssessment;
-                      bool isDefault = defaultAssessmentTypes.contains(type);
+            // Assessment Selector
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xff4AC7FA),
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Select Assessment", style: TextStyle(color: Colors.white, fontSize: 16)),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: assessmentTypes.length,
+                      itemBuilder: (context, index) {
+                        String type = assessmentTypes[index];
+                        bool isSelected = type == selectedAssessment;
+                        bool isDefault = defaultAssessmentTypes.contains(type);
 
-                      return GestureDetector(
-                        onTap: () => setState(() => selectedAssessment = type),
-                        onLongPress: isDefault ? null : () => _deleteAssessmentType(type),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            gradient: isSelected ? const LinearGradient(colors: [Color(0xff26A69A), Color(0xff2DE1FC)]) : null,
-                            color: isSelected ? null : Colors.white24,
-                            borderRadius: BorderRadius.circular(30),
+                        return GestureDetector(
+                          onTap: () => setState(() => selectedAssessment = type),
+                          onLongPress: isDefault ? null : () => _deleteAssessmentType(type),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              gradient: isSelected ? const LinearGradient(colors: [Color(0xff26A69A), Color(0xff2DE1FC)]) : null,
+                              color: isSelected ? null : Colors.white24,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Text(
+                              type,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          child: Text(
-                            type,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ElevatedButton.icon(
-              onPressed: _showAddAssessmentDropdown,
-              icon: const Icon(Icons.add),
-              label: const Text("Add New Assessment Type"),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xff26A69A), minimumSize: const Size(double.infinity, 50)),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Students List
-          Expanded(
-            child: students.isEmpty
-                ? const Center(child: Text("No students found.\nAdd students first."))
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: students.length,
-              itemBuilder: (context, index) {
-                final student = students[index];
-                String roll = student['roll'] ?? '';
-                String name = student['name'] ?? '';
-
-                var data = assessmentData[selectedAssessment]?[roll];
-                int marks = data?['marks'] ?? 0;
-                bool submitted = data?['submitted'] ?? false;
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(backgroundColor: Colors.teal, radius: 18, child: Text("${index + 1}")),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Text("Roll No: $roll", style: const TextStyle(color: Colors.grey)),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => _toggleSubmission(roll),
-                              child: Container(
-                                height: 48,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: submitted ? Colors.green[100] : Colors.orange[100],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  submitted ? "Submitted" : "Pending",
-                                  style: TextStyle(color: submitted ? Colors.green[900] : Colors.orange[900], fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: SizedBox(
-                                height: 48,
-                                child: TextField(
-                                  enabled: submitted,
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  decoration: InputDecoration(
-                                    hintText: submitted ? "Enter Marks" : "Submit first",
-                                    border: const OutlineInputBorder(),
-                                    filled: !submitted,
-                                    fillColor: !submitted ? Colors.grey[200] : null,
-                                  ),
-                                  controller: TextEditingController(text: marks == 0 ? "" : marks.toString()),
-                                  onChanged: (value) {
-                                    if (submitted) _updateMarks(roll, int.tryParse(value) ?? 0);
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 16),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ElevatedButton.icon(
+                onPressed: _showAddAssessmentDropdown,
+                icon: const Icon(Icons.add),
+                label: const Text("Add New Assessment Type"),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xff26A69A), minimumSize: const Size(double.infinity, 50)),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Students List
+            Expanded(
+              child: students.isEmpty
+                  ? const Center(child: Text("No students found.\nAdd students first.", style: TextStyle(color: Colors.black54)))
+                  : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: students.length,
+                itemBuilder: (context, index) {
+                  final student = students[index];
+                  String roll = student['roll'] ?? '';
+                  String name = student['name'] ?? '';
+
+                  var data = assessmentData[selectedAssessment]?[roll];
+                  int marks = data?['marks'] ?? 0;
+                  bool submitted = data?['submitted'] ?? false;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(backgroundColor: Colors.teal, radius: 18, child: Text("${index + 1}", style: const TextStyle(color: Colors.white))),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Text("Roll No: $roll", style: const TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => _toggleSubmission(roll),
+                                child: Container(
+                                  height: 48,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: submitted ? Colors.green[100] : Colors.orange[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    submitted ? "Submitted" : "Pending",
+                                    style: TextStyle(color: submitted ? Colors.green[900] : Colors.orange[900], fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 48,
+                                  child: TextField(
+                                    enabled: submitted,
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    decoration: InputDecoration(
+                                      hintText: submitted ? "Enter Marks" : "Submit first",
+                                      border: const OutlineInputBorder(),
+                                      filled: !submitted,
+                                      fillColor: !submitted ? Colors.grey[200] : null,
+                                    ),
+                                    controller: TextEditingController(text: marks == 0 ? "" : marks.toString()),
+                                    onChanged: (value) {
+                                      if (submitted) _updateMarks(roll, int.tryParse(value) ?? 0);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

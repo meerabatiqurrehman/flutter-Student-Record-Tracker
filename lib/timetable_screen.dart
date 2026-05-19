@@ -6,6 +6,7 @@ class TimetableScreen extends StatefulWidget {
   final String department;
   final String semester;
   final String section;
+  final String? classKey;        // ← New
 
   const TimetableScreen({
     super.key,
@@ -13,6 +14,7 @@ class TimetableScreen extends StatefulWidget {
     required this.department,
     required this.semester,
     required this.section,
+    this.classKey,
   });
 
   @override
@@ -35,8 +37,11 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // ==================== UPDATED CLASS KEY ====================
+  // ==================== STRONG CLASS KEY ====================
   String get _classKey {
+    if (widget.classKey != null && widget.classKey!.isNotEmpty) {
+      return widget.classKey!;
+    }
     final degree = (widget.className ?? "").trim().isNotEmpty
         ? widget.className!
         : "unknown";
@@ -51,6 +56,19 @@ class _TimetableScreenState extends State<TimetableScreen> {
   void initState() {
     super.initState();
     _loadTimetable();
+  }
+
+  @override
+  void didUpdateWidget(covariant TimetableScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.className != widget.className ||
+        oldWidget.department != widget.department ||
+        oldWidget.semester != widget.semester ||
+        oldWidget.section != widget.section ||
+        oldWidget.classKey != widget.classKey) {
+      schedule.clear();
+      _loadTimetable();
+    }
   }
 
   Future<void> _loadTimetable() async {

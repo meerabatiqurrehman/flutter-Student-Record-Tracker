@@ -36,6 +36,23 @@ class _ClassScreenState extends State<ClassScreen> {
     _loadClasses();
   }
 
+  // ==================== STRONG UNIQUE CLASS KEY ====================
+  String _getClassKey(Map<String, dynamic> classData) {
+    String degree = (classData['degree'] ?? '').toString().trim();
+    String department = (classData['department'] ?? '').toString().trim();
+    String semester = (classData['semester'] ?? '').toString().trim();
+    String section = (classData['section'] ?? '').toString().trim();
+    String code = (classData['code'] ?? '').toString().trim();
+    String title = (classData['title'] ?? '').toString().trim();
+
+    return "${degree}_${department}_${semester}_${section}_${code}_${title}"
+        .replaceAll(" ", "_")
+        .replaceAll("-", "_")
+        .replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_')
+        .replaceAll("__", "_")
+        .toLowerCase();
+  }
+
   // LOAD CLASSES FROM FIREBASE
   void _loadClasses() {
 
@@ -55,6 +72,9 @@ class _ClassScreenState extends State<ClassScreen> {
           Map<String, dynamic> classData =
           Map<String, dynamic>.from(value);
 
+          // ==================== Add Unique Class Key ====================
+          classData['classKey'] = _getClassKey(classData);
+
           String displayName =
               "${classData['degree']} "
               "${classData['department']} - "
@@ -66,6 +86,7 @@ class _ClassScreenState extends State<ClassScreen> {
           classes.add({
             ...classData,
             "displayName": displayName,
+            "id": key,               // Firebase ID
           });
         });
       }

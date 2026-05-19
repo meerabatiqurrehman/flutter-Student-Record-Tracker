@@ -6,6 +6,7 @@ class StudentListScreen extends StatefulWidget {
   final String department;
   final String semester;
   final String section;
+  final String? classKey;
 
   const StudentListScreen({
     super.key,
@@ -13,6 +14,7 @@ class StudentListScreen extends StatefulWidget {
     required this.department,
     required this.semester,
     required this.section,
+    this.classKey,
   });
 
   @override
@@ -25,7 +27,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
   List<Map<String, dynamic>> students = [];
   List<Map<String, dynamic>> filteredStudents = [];
 
-  // Form Controllers
   final TextEditingController rollController = TextEditingController();
   final TextEditingController regController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
@@ -44,8 +45,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
     _loadStudents();
   }
 
-  // ==================== UPDATED CLASS KEY ====================
   String get _classKey {
+    if (widget.classKey != null && widget.classKey!.isNotEmpty) {
+      return widget.classKey!;
+    }
     final degree = (widget.className ?? "").trim().isNotEmpty
         ? widget.className!
         : "unknown";
@@ -60,8 +63,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
     try {
       final snapshot = await _dbRef.child('classes/$_classKey/students').get();
       if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
-
+        final data = snapshot.value as Map<dynamic, dynamic>? ?? {};
         setState(() {
           students = data.entries.map((entry) {
             final student = Map<String, dynamic>.from(entry.value);
@@ -69,6 +71,11 @@ class _StudentListScreenState extends State<StudentListScreen> {
             return student;
           }).toList();
           filteredStudents = students;
+        });
+      } else {
+        setState(() {
+          students = [];
+          filteredStudents = [];
         });
       }
     } catch (e) {
@@ -141,7 +148,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   height: 50,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff6A1B9A),
+                      backgroundColor: const Color(0xff0d3b66),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -257,9 +264,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
     String classInfo = "${widget.semester} - Section ${widget.section}";
 
     return Scaffold(
-      backgroundColor: const Color(0xfff8f9fa),
       appBar: AppBar(
-        backgroundColor: const Color(0xff4AC7FA),
+        backgroundColor: const Color(0xff0d3b66),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -267,158 +273,223 @@ class _StudentListScreenState extends State<StudentListScreen> {
         ),
         title: const Text(
           "Student List",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(25),
-            margin: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(
-              color: Color(0xff4AC7FA),
-              borderRadius: BorderRadius.all(Radius.circular(25)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Registered Students",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  classInfo,
-                  style: const TextStyle(fontSize: 16, color: Colors.white70),
-                ),
-              ],
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xffdff3ff), Color(0xff8ecdf5)],
           ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: "Search Student by Name or Roll No.",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
+        ),
+        child: Column(
+          children: [
+            // Resized Header Card Container
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+              margin: const EdgeInsets.only(left: 50, right: 50, top: 12, bottom: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xff4AC7FA),
+                borderRadius: BorderRadius.all(Radius.circular(25)),
               ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: GestureDetector(
-              onTap: () => _showAddStudentForm(),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xff26C6DA), Color(0xff4AC7FA)],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.person_add, size: 40, color: Colors.white),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Add New Student",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Registered Students",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Tap to add new record",
-                      style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    classInfo,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ),
 
-          const SizedBox(height: 10),
-
-          Expanded(
-            child: filteredStudents.isEmpty
-                ? const Center(
-              child: Text(
-                "No students added yet",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            )
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: filteredStudents.length,
-              itemBuilder: (context, index) {
-                final student = filteredStudents[index];
-                final colors = [
-                  Colors.blue,
-                  Colors.green,
-                  Colors.orange,
-                  Colors.purple,
-                  Colors.teal,
-                ];
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
+            // Search Filter
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: "Search Student by Name or Roll No.",
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
                   ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: colors[index % colors.length],
-                      child: Text(
-                        "${index + 1}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // Optimized Add New Student Button Card Layout Width/Padding
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 8),
+              child: GestureDetector(
+                onTap: () => _showAddStudentForm(),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff4AC7FA),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.person_add, size: 42, color: Colors.white),
+                      const SizedBox(height: 6),
+                      const Text(
+                        "Add New Student",
+                        style: TextStyle(
                           fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                    ),
-                    title: Text(
-                      student["name"]!,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      "${student["roll"]} | ${student["reg"]}\n"
-                          "Father: ${student["father"] ?? '-'}\n"
-                          "CNIC: ${student["cnic"] ?? '-'}",
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _showAddStudentForm(key: student['key']),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Tap to add new record",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 13,
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteStudent(student['key']),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 10),
+
+            // List View section
+            Expanded(
+              child: filteredStudents.isEmpty
+                  ? const Center(
+                child: Text(
+                  "No students added yet",
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                ),
+              )
+                  : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: filteredStudents.length,
+                itemBuilder: (context, index) {
+                  final student = filteredStudents[index];
+                  final colors = [
+                    Colors.blue,
+                    Colors.green,
+                    Colors.orange,
+                    Colors.purple,
+                    Colors.teal,
+                  ];
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Student avatar
+                          CircleAvatar(
+                            backgroundColor: colors[index % colors.length],
+                            radius: 22,
+                            child: Text(
+                              "${index + 1}",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+
+                          // 2. Student Details Box Info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  student["name"] ?? '',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${student["roll"] ?? ''} | ${student["reg"] ?? ''}",
+                                  style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Father: ${student["father"] ?? '-'}",
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "CNIC: ${student["cnic"] ?? '-'}",
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 3. Edit & Delete Compact Action Layout Column
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue, size: 22),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _showAddStudentForm(key: student['key']),
+                              ),
+                              const SizedBox(height: 4),
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 22),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _deleteStudent(student['key']),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

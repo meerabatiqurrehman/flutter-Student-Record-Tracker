@@ -6,6 +6,7 @@ class AttendanceScreen extends StatefulWidget {
   final String department;
   final String semester;
   final String section;
+  final String? classKey;
 
   const AttendanceScreen({
     super.key,
@@ -13,6 +14,7 @@ class AttendanceScreen extends StatefulWidget {
     required this.department,
     required this.semester,
     required this.section,
+    this.classKey,
   });
 
   @override
@@ -34,8 +36,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  // ==================== UPDATED CLASS KEY ====================
+  // ==================== STRONG CLASS KEY ====================
   String get _classKey {
+    if (widget.classKey != null && widget.classKey!.isNotEmpty) {
+      return widget.classKey!;
+    }
     final degree = (widget.className ?? "").trim().isNotEmpty
         ? widget.className!
         : "unknown";
@@ -49,16 +54,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
+    _reloadAllData();
+  }
+
+  @override
+  void didUpdateWidget(covariant AttendanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.className != widget.className ||
+        oldWidget.department != widget.department ||
+        oldWidget.semester != widget.semester ||
+        oldWidget.section != widget.section ||
+        oldWidget.classKey != widget.classKey) {
+      _reloadAllData();
+    }
+  }
+
+  void _reloadAllData() {
+    lectures.clear();
+    attendanceRecord.clear();
+    students.clear();
+    totalLecturesPerStudent.clear();
+    presentCountPerStudent.clear();
+    selectedLectureIndex = 0;
+    isHoliday = false;
+
     _loadStudents();
-    _loadOverallSemesterData();
     _loadAttendanceForDate();
+    _loadOverallSemesterData();
   }
 
   Future<void> _loadStudents() async {
     try {
       final snapshot = await _dbRef.child('classes/$_classKey/students').get();
       if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+        final data = snapshot.value as Map<dynamic, dynamic>? ?? {};
         setState(() {
           students = data.entries.map((entry) {
             final student = Map<String, dynamic>.from(entry.value);
@@ -66,6 +95,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             return student;
           }).toList();
         });
+      } else {
+        setState(() => students = []);
       }
     } catch (e) {
       print("Error loading students: $e");
@@ -81,14 +112,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       final snapshot = await _dbRef.child('classes/$_classKey/attendance/$dateStr').get();
 
-      attendanceRecord.clear();
       lectures.clear();
+      attendanceRecord.clear();
 
       if (snapshot.exists) {
         final lecturesMap = snapshot.value as Map<dynamic, dynamic>;
         int index = 0;
         for (var entry in lecturesMap.entries) {
-          lectures.add(entry.key);
+          lectures.add(entry.key.toString());
           attendanceRecord[index] = Map<String, String>.from(entry.value as Map);
           index++;
         }
@@ -101,7 +132,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       });
     } catch (e) {
       print("Error loading attendance: $e");
-      if (lectures.isEmpty) lectures = ["Lect 1"];
+      lectures = ["Lect 1"];
       setState(() {});
     }
   }
@@ -135,187 +166,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     } catch (e) {
       print("Error loading semester data: $e");
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    String classTitle = "${widget.className} - ${widget.semester} ${widget.section}";
-
-    return Scaffold(
-      backgroundColor: const Color(0xfff0f4f8),
-      appBar: AppBar(
-        backgroundColor: const Color(0xff26A69A),
-        elevation: 0,
-        title: const Text("Class Attendance"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save, color: Colors.white),
-            onPressed: _saveAttendance,
-          ),
-          IconButton(
-            icon: Icon(isHoliday ? Icons.event_busy : Icons.event_available, color: Colors.white),
-            onPressed: _toggleHoliday,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xff26A69A),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(25),
-                bottomRight: Radius.circular(25),
-              ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      classTitle,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    GestureDetector(
-                      onTap: _selectDate,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Use Save Button to Save Attendance\nUse Holiday Button to Mark/Unmark Holiday\nLong press Lecture Button to Delete it",
-                  style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-                  textAlign: TextAlign.center,
-                ),
-                if (isHoliday)
-                  const Text(
-                    "This date is marked as Holiday",
-                    style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold),
-                  ),
-              ],
-            ),
-          ),
-
-          // Lecture Tabs
-          SizedBox(
-            height: 70,
-            child: Row(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: lectures.length,
-                    itemBuilder: (context, index) {
-                      bool isSelected = selectedLectureIndex == index;
-                      return GestureDetector(
-                        onTap: () => setState(() => selectedLectureIndex = index),
-                        onLongPress: () => _deleteLecture(index),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xff00796B) : Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: const Color(0xff00796B)),
-                          ),
-                          child: Text(
-                            lectures[index],
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : const Color(0xff00796B),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add_circle, color: Color(0xff00796B), size: 32),
-                  onPressed: _addNewLecture,
-                ),
-              ],
-            ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text("Roll No", style: TextStyle(fontWeight: FontWeight.bold)),
-                Spacer(),
-                Text("Name", style: TextStyle(fontWeight: FontWeight.bold)),
-                Spacer(),
-                Text("Status", style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: isHoliday
-                ? const Center(child: Text("This is a Holiday.\nNo attendance required.", style: TextStyle(fontSize: 16)))
-                : students.isEmpty
-                ? const Center(child: Text("No students found.\nAdd students first."))
-                : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: students.length,
-              itemBuilder: (context, index) {
-                final student = students[index];
-                String roll = student['roll'] ?? '';
-                String name = student['name'] ?? '';
-                String status = attendanceRecord[selectedLectureIndex]?[roll] ?? '';
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: Text(roll, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    title: Text(name),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _statusChip("P", Colors.teal, status == "P", () => _markAttendance(roll, "P")),
-                        const SizedBox(width: 6),
-                        _statusChip("A", Colors.red, status == "A", () => _markAttendance(roll, "A")),
-                        const SizedBox(width: 6),
-                        _statusChip("L", Colors.orange, status == "L", () => _markAttendance(roll, "L")),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          _buildShortAttendance(),
-          _buildAttendanceSummary(),
-        ],
-      ),
-    );
   }
 
   void _markAttendance(String roll, String status) {
@@ -442,6 +292,186 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       lectures.add("Lect ${lectures.length + 1}");
       selectedLectureIndex = lectures.length - 1;
     });
+  }
+
+  // ==================== BUILD METHOD ====================
+  @override
+  Widget build(BuildContext context) {
+    String classTitle = "${widget.className} - ${widget.semester} ${widget.section}";
+
+    return Scaffold(
+      backgroundColor: const Color(0xfff0f4f8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xff26A69A),
+        elevation: 0,
+        title: const Text("Class Attendance"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save, color: Colors.white),
+            onPressed: _saveAttendance,
+          ),
+          IconButton(
+            icon: Icon(isHoliday ? Icons.event_busy : Icons.event_available, color: Colors.white),
+            onPressed: _toggleHoliday,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Color(0xff26A69A),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(25),
+                bottomRight: Radius.circular(25),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      classTitle,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    GestureDetector(
+                      onTap: _selectDate,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Use Save Button to Save Attendance\nUse Holiday Button to Mark/Unmark Holiday\nLong press Lecture Button to Delete it",
+                  style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+                if (isHoliday)
+                  const Text(
+                    "This date is marked as Holiday",
+                    style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold),
+                  ),
+              ],
+            ),
+          ),
+
+          SizedBox(
+            height: 70,
+            child: Row(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    itemCount: lectures.length,
+                    itemBuilder: (context, index) {
+                      bool isSelected = selectedLectureIndex == index;
+                      return GestureDetector(
+                        onTap: () => setState(() => selectedLectureIndex = index),
+                        onLongPress: () => _deleteLecture(index),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xff00796B) : Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: const Color(0xff00796B)),
+                          ),
+                          child: Text(
+                            lectures[index],
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : const Color(0xff00796B),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle, color: Color(0xff00796B), size: 32),
+                  onPressed: _addNewLecture,
+                ),
+              ],
+            ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text("Roll No", style: TextStyle(fontWeight: FontWeight.bold)),
+                Spacer(),
+                Text("Name", style: TextStyle(fontWeight: FontWeight.bold)),
+                Spacer(),
+                Text("Status", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+
+          Expanded(
+            child: isHoliday
+                ? const Center(child: Text("This is a Holiday.\nNo attendance required.", style: TextStyle(fontSize: 16)))
+                : students.isEmpty
+                ? const Center(child: Text("No students found.\nAdd students first."))
+                : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: students.length,
+              itemBuilder: (context, index) {
+                final student = students[index];
+                String roll = student['roll'] ?? '';
+                String name = student['name'] ?? '';
+                String status = attendanceRecord[selectedLectureIndex]?[roll] ?? '';
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading: Text(roll, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: Text(name),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _statusChip("P", Colors.teal, status == "P", () => _markAttendance(roll, "P")),
+                        const SizedBox(width: 6),
+                        _statusChip("A", Colors.red, status == "A", () => _markAttendance(roll, "A")),
+                        const SizedBox(width: 6),
+                        _statusChip("L", Colors.orange, status == "L", () => _markAttendance(roll, "L")),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          _buildShortAttendance(),
+          _buildAttendanceSummary(),
+        ],
+      ),
+    );
   }
 
   Widget _buildShortAttendance() {

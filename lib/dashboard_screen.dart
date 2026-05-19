@@ -24,7 +24,6 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // ORIGINAL TOP GRADIENT (UNCHANGED)
           Container(
             height: 250,
             decoration: const BoxDecoration(
@@ -106,8 +105,7 @@ class DashboardScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    CourseDetailsScreen(courseData: classData),
+                                builder: (context) => CourseDetailsScreen(courseData: classData),
                               ),
                             );
                           },
@@ -125,6 +123,7 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
+                                  classKey: classData['classKey'],
                                 ),
                               ),
                             );
@@ -143,6 +142,7 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
+                                  classKey: classData['classKey'],
                                 ),
                               ),
                             );
@@ -161,6 +161,7 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
+                                  classKey: classData['classKey'],   // ← Yeh add kiya
                                 ),
                               ),
                             );
@@ -179,6 +180,7 @@ class DashboardScreen extends StatelessWidget {
                                   department: classData['department'] ?? '',
                                   semester: classData['semester'] ?? '',
                                   section: classData['section'] ?? '',
+                                  classKey: classData['classKey'],   // ← Yeh add kiya
                                 ),
                               ),
                             );
